@@ -419,9 +419,14 @@ func (p *MediaPlaylist) ResetCache() {
 	p.buf.Reset()
 }
 
+func (p *MediaPlaylist) Encode() *bytes.Buffer {
+	return p.EncodeURIMap(func(uri string) string { return uri })
+}
+
 // Encode generates output in M3U8 format. Marshal `winsize` elements
 // from bottom of the `segments` queue.
-func (p *MediaPlaylist) Encode() *bytes.Buffer {
+// URIMap is an optional function to transform URIs
+func (p *MediaPlaylist) EncodeURIMap(URIMap func(string) string) *bytes.Buffer {
 	if p.buf.Len() > 0 {
 		return &p.buf
 	}
@@ -444,14 +449,14 @@ func (p *MediaPlaylist) Encode() *bytes.Buffer {
 	// default key (workaround for Widevine)
 	if p.Key != nil {
 		if encodeDefaultMap && p.Map.BeforeKey {
-			p.encodeMap(p.Map)
+			p.encodeMap(p.Map, URIMap)
 			// set to false so we don't encode it twice
 			encodeDefaultMap = false
 		}
-		p.encodeKey(p.Key)
+		p.encodeKey(p.Key, URIMap)
 	}
 	if encodeDefaultMap {
-		p.encodeMap(p.Map)
+		p.encodeMap(p.Map, URIMap)
 	}
 	if p.MediaType > 0 {
 		p.buf.WriteString("#EXT-X-PLAYLIST-TYPE:")
@@ -642,15 +647,15 @@ func (p *MediaPlaylist) Encode() *bytes.Buffer {
 		// check for key change
 		if seg.Key != nil && p.Key != seg.Key {
 			if encodeSegMap && seg.Map.BeforeKey {
-				p.encodeMap(seg.Map)
+				p.encodeMap(seg.Map, URIMap)
 				// set to false so we don't encode it twice
 				encodeSegMap = false
 			}
-			p.encodeKey(seg.Key)
+			p.encodeKey(seg.Key, URIMap)
 		}
 
 		if encodeSegMap {
-			p.encodeMap(seg.Map)
+			p.encodeMap(seg.Map, URIMap)
 		}
 
 		if !seg.ProgramDateTime.IsZero() {
@@ -704,7 +709,7 @@ func (p *MediaPlaylist) Encode() *bytes.Buffer {
 					p.buf.WriteRune('\n')
 				}
 			}
-			p.buf.WriteString(seg.URI)
+			p.buf.WriteString(URIMap(seg.URI))
 			if p.Args != "" {
 				p.buf.WriteRune('?')
 				p.buf.WriteString(p.Args)
@@ -718,13 +723,13 @@ func (p *MediaPlaylist) Encode() *bytes.Buffer {
 	return &p.buf
 }
 
-func (p *MediaPlaylist) encodeKey(k *Key) {
+func (p *MediaPlaylist) encodeKey(k *Key, URIMap func(string) string) {
 	p.buf.WriteString("#EXT-X-KEY:")
 	p.buf.WriteString("METHOD=")
 	p.buf.WriteString(k.Method)
 	if k.Method != "NONE" {
 		p.buf.WriteString(",URI=\"")
-		p.buf.WriteString(k.URI)
+		p.buf.WriteString(URIMap(k.URI))
 		p.buf.WriteRune('"')
 		if k.IV != "" {
 			p.buf.WriteString(",IV=")
@@ -749,10 +754,10 @@ func (p *MediaPlaylist) encodeKey(k *Key) {
 	p.buf.WriteRune('\n')
 }
 
-func (p *MediaPlaylist) encodeMap(m *Map) {
+func (p *MediaPlaylist) encodeMap(m *Map, URIMap func(string) string) {
 	p.buf.WriteString("#EXT-X-MAP:")
 	p.buf.WriteString("URI=\"")
-	p.buf.WriteString(m.URI)
+	p.buf.WriteString(URIMap(m.URI))
 	p.buf.WriteRune('"')
 	if m.Limit > 0 {
 		p.buf.WriteString(",BYTERANGE=\"")

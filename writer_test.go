@@ -1209,6 +1209,34 @@ func TestMasterSetVersion(t *testing.T) {
 	}
 }
 
+func TestEncodeMediaPlaylistWithURIFormat(t *testing.T) {
+	p, e := NewMediaPlaylist(1, 1)
+	if e != nil {
+		t.Fatalf("Create media playlist failed: %s", e)
+	}
+
+	e = p.AppendSegment(&MediaSegment{
+		Title:    "",
+		URI:      "test01.ts",
+		Duration: 5.0,
+	})
+	if e != nil {
+		t.Fatalf("Add 1st segment to a media playlist failed: %s", e)
+	}
+
+	encoded := p.Encode().String()
+	expected := "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-TARGETDURATION:5\n#EXTINF:5.000,\ntest01.ts\n"
+	if encoded != expected {
+		t.Fatalf("Media playlist: %s\n is not equal to Media Playlist:\n%v", expected, encoded)
+	}
+	p.ResetCache()
+	encoded = p.EncodeURIMap(func(uri string) string { return "https://example.com/" + uri }).String()
+	expected = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-TARGETDURATION:5\n#EXTINF:5.000,\nhttps://example.com/test01.ts\n"
+	if encoded != expected {
+		t.Fatalf("Media playlist: %s\n is not equal to Media Playlist:\n%v", expected, encoded)
+	}
+}
+
 /******************************
  *  Code generation examples  *
  ******************************/
