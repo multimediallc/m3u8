@@ -71,6 +71,10 @@ func (p *MasterPlaylist) ResetCache() {
 
 // Encode generates the output in M3U8 format.
 func (p *MasterPlaylist) Encode() *bytes.Buffer {
+	return p.EncodeURIMap(func(uri string) string { return uri })
+}
+
+func (p *MasterPlaylist) EncodeURIMap(URIMap func(string) string) *bytes.Buffer {
 	if p.buf.Len() > 0 {
 		return &p.buf
 	}
@@ -157,7 +161,7 @@ func (p *MasterPlaylist) Encode() *bytes.Buffer {
 				}
 				if alt.URI != "" {
 					p.buf.WriteString(",URI=\"")
-					p.buf.WriteString(alt.URI)
+					p.buf.WriteString(URIMap(alt.URI))
 					p.buf.WriteRune('"')
 				}
 				p.buf.WriteRune('\n')
@@ -196,7 +200,7 @@ func (p *MasterPlaylist) Encode() *bytes.Buffer {
 			}
 			if pl.URI != "" {
 				p.buf.WriteString(",URI=\"")
-				p.buf.WriteString(pl.URI)
+				p.buf.WriteString(URIMap(pl.URI))
 				p.buf.WriteRune('"')
 			}
 			p.buf.WriteRune('\n')
@@ -214,7 +218,7 @@ func (p *MasterPlaylist) Encode() *bytes.Buffer {
 			}
 			if pl.URI != "" {
 				p.buf.WriteString(",URI=\"")
-				p.buf.WriteString(pl.URI)
+				p.buf.WriteString(URIMap(pl.URI))
 				p.buf.WriteRune('"')
 			}
 			p.buf.WriteRune('\n')
@@ -280,9 +284,10 @@ func (p *MasterPlaylist) Encode() *bytes.Buffer {
 			}
 
 			p.buf.WriteRune('\n')
-			p.buf.WriteString(pl.URI)
+			mapped := URIMap(pl.URI)
+			p.buf.WriteString(mapped)
 			if p.Args != "" {
-				if strings.Contains(pl.URI, "?") {
+				if strings.Contains(mapped, "?") {
 					p.buf.WriteRune('&')
 				} else {
 					p.buf.WriteRune('?')
